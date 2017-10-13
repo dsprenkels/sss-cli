@@ -4,7 +4,7 @@ This tool allows for securely splitting and recombining secrets using a secure
 implementaion of the Shamir secret sharing scheme. It is a wrapper around my
 [SSS library](https://github.com/dsprenkels/sss).
 
-# Install
+# Usage
 
 You need [Rust] to build `sss-cli` from source. When you have installed Rust,
 you can install these tools using [Cargo][crates.io]:
@@ -20,7 +20,8 @@ echo -n "Tyler Durden isn't real." | secret-share-split -n 3 -t 2 >shares.txt
 head -n 2 shares.txt | secret-share-combine
 ```
 
-# Uninstall
+To uninstall the crate you can use a command similar to the install-command
+above.
 
 ```shell
 # Uninstall the secret sharing tools
