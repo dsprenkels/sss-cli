@@ -1,0 +1,22 @@
+[package]
+name = "shamirsecretsharing-cli"
+version = "0.1.0"
+authors = ["Daan Sprenkels <hello@dsprenkels.com>"]
+
+[[bin]]
+name = "secret-share-split"
+path = "src/bin/split.rs"
+
+[[bin]]
+name = "secret-share-combine"
+path = "src/bin/combine.rs"
+
+[dependencies]
+shamirsecretsharing = "0.1"
+rand = "0.3"
+libc = "0.2"
+
+[dependencies.clap]
+version = "2.25"
+default-features = false
+features = [ "suggestions", "color" ]
