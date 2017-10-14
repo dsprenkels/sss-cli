@@ -81,6 +81,7 @@ fn main() {
         Err(err) => panic!("Error while combining shares: {}", err),
     }
 
+    // TODO(dsprenkels) In the case of binary data, output to stdout only if it is not a tty
     match String::from_utf8(secret) {
         Ok(text) => eprintln!("Restored secret: '{}'", text),
         Err(utf8err) => {
