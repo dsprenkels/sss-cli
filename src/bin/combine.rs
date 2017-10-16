@@ -1,24 +1,53 @@
-#[macro_use]
-extern crate clap;
+extern crate getopts;
 extern crate shamirsecretsharing;
 extern crate shamirsecretsharing_cli;
 
+use std::env;
 use std::io::prelude::*;
-use clap::{App, ArgMatches};
+use std::process::exit;
+
+use getopts::Options;
 use shamirsecretsharing::hazmat::{combine_keyshares, KEYSHARE_SIZE};
 use shamirsecretsharing_cli::*;
 
-/// Parse the command line arguments
-fn argparse<'a>() -> ArgMatches<'a> {
-    App::new("secret-share-combine")
-        .version(crate_version!())
-        .author(crate_authors!())
-        .about("Combine a list of shares (from stdin) that was created with secret-share-split")
-        .get_matches()
+
+/// Print the application usage string
+fn print_usage(_program: &str, _opts: Options) {
+    println!("Combine a list of shares (from stdin) that was created with secret-share-split
+
+Usage:
+    secret-share-combine
+
+Options:
+    -h, --help              Print help information
+    -V, --version           Print version information");
 }
 
+
 fn main() {
-    let _ = argparse();
+    // Parse command line arguments
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
+
+    let mut opts = Options::new();
+    opts.optflag("h", "help", "Print help information");
+    opts.optflag("V", "version", "Print version information");
+
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => m,
+        Err(f) => {
+            eprintln!("Error: {}", f.to_string());
+            exit(1);
+        }
+    };
+    if matches.opt_present("h") {
+        print_usage(&program, opts);
+        return;
+    }
+    if matches.opt_present("V") {
+        print_version(&program, opts);
+        return;
+    }
 
     // Read each line
     let mut input_file = std::io::stdin();

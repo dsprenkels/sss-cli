@@ -1,8 +1,10 @@
 extern crate libc;
+extern crate getopts;
 
 use std::io;
 use libc::{c_ulonglong, c_int};
 use std::io::prelude::*;
+use getopts::Options;
 
 pub const NONCE: [u8; 24] = [0; 24];
 
@@ -14,6 +16,7 @@ const crypto_secretbox_xsalsa20poly1305_tweet_NONCEBYTES: usize = 24;
 const crypto_secretbox_xsalsa20poly1305_tweet_ZEROBYTES: usize = 32;
 #[allow(non_upper_case_globals)]
 const crypto_secretbox_xsalsa20poly1305_tweet_BOXZEROBYTES: usize = 16;
+
 extern "C" {
     fn crypto_secretbox_xsalsa20poly1305_tweet(c: *mut u8,
                                                m: *const u8,
@@ -78,4 +81,9 @@ pub fn crypto_secretbox_open(w: &mut Write,
     io::copy(&mut &m[crypto_secretbox_xsalsa20poly1305_tweet_ZEROBYTES..],
              w)?;
     Ok(Some(()))
+}
+
+/// Print the current version
+pub fn print_version(_program: &str, _opts: Options) {
+    println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 }

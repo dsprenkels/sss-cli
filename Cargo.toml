@@ -12,11 +12,7 @@ name = "secret-share-combine"
 path = "src/bin/combine.rs"
 
 [dependencies]
-shamirsecretsharing = "0.1"
-rand = "0.3"
+getopts = "0.2"
 libc = "0.2"
-
-[dependencies.clap]
-version = "2.25"
-default-features = false
-features = [ "suggestions", "color" ]
+rand = "0.3"
+shamirsecretsharing = "0.1"
