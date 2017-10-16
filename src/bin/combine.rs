@@ -4,6 +4,7 @@ extern crate shamirsecretsharing;
 extern crate shamirsecretsharing_cli;
 
 use std::io::prelude::*;
+
 use clap::{App, ArgMatches};
 use shamirsecretsharing::hazmat::{combine_keyshares, KEYSHARE_SIZE};
 use shamirsecretsharing_cli::*;

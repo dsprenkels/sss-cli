@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate clap;
-extern crate shamirsecretsharing;
 extern crate rand;
 extern crate shamirsecretsharing_cli;
+extern crate shamirsecretsharing;
 
 use std::process::exit;
 use std::io::prelude::*;
