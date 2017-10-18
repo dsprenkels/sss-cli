@@ -1,5 +1,8 @@
 #[macro_use]
 extern crate clap;
+extern crate env_logger;
+#[macro_use]
+extern crate log;
 extern crate rand;
 extern crate shamirsecretsharing_cli;
 extern crate shamirsecretsharing;
@@ -39,6 +42,9 @@ fn argparse<'a>() -> ArgMatches<'a> {
 }
 
 fn main() {
+    // Init env_logger
+    env_logger::init().expect("Failed to initiate logger");
+
     // Parse command line arguments
     let matches = argparse();
     let input_fn = matches.value_of("FILE");
@@ -57,18 +63,17 @@ fn main() {
     let mut input_file: Box<Read> = match input_fn {
         None | Some("-") => Box::new(std::io::stdin()),
         Some(input_fn) => {
-            Box::new(File::open(input_fn)
-            .unwrap_or_else(|err| {
-                eprintln!("Error while opening file '{}': {}", input_fn, err);
+            Box::new(File::open(input_fn).unwrap_or_else(|err| {
+                error!("Error while opening file '{}': {}", input_fn, err);
                 exit(1);
-            }))
+        }))
         }
     };
     // We are not able to use the normal API for variable length plaintexts, so we will have to
     // use the hazmat API and encrypt the file ourselves
     let key: [u8; KEY_SIZE] = random();
     let keyshares = create_keyshares(&key, count, treshold).unwrap_or_else(|err| {
-                                                                               eprintln!("{}", err);
+                                                                               error!("{}", err);
                                                                                exit(1);
                                                                            });
 

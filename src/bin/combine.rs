@@ -1,8 +1,12 @@
 #[macro_use]
 extern crate clap;
+extern crate env_logger;
+#[macro_use]
+extern crate log;
 extern crate shamirsecretsharing;
 extern crate shamirsecretsharing_cli;
 
+use std::process::exit;
 use std::io::prelude::*;
 
 use clap::{App, ArgMatches};
@@ -19,6 +23,9 @@ fn argparse<'a>() -> ArgMatches<'a> {
 }
 
 fn main() {
+    // Init env_logger
+    env_logger::init().expect("Failed to initiate logger");
+
     let _ = argparse();
 
     // Read each line
@@ -26,12 +33,14 @@ fn main() {
     let mut shares_string = String::new();
     input_file
         .read_to_string(&mut shares_string)
-        .unwrap_or_else(|err| panic!("Error while reading stdin: {}", err));
+        .unwrap_or_else(|err| { error!("Error while reading stdin: {}", err);
+                                exit(1)});
     let lines = shares_string.lines().collect::<Vec<&str>>();
 
     // Decode the lines
     if lines.is_empty() {
-        panic!("No input shares supplied");
+        error!("No input shares supplied");
+        exit(1);
     }
     let mut decoded_lines = Vec::with_capacity(lines.len());
     for (line_idx, line) in lines.iter().enumerate() {
@@ -40,7 +49,10 @@ fn main() {
         while offset < line.len() {
             let b = match u8::from_str_radix(&line[offset..offset + 2], 16) {
                 Ok(x) => x,
-                Err(err) => panic!("Error while decoding share {}: {}", line_idx + 1, err),
+                Err(err) => {
+                    error!("Error while decoding share {}: {}", line_idx + 1, err);
+                    exit(1);
+                },
             };
             decoded_line.push(b);
             offset += 2;
@@ -60,16 +72,20 @@ fn main() {
     // Error if the ciphertexts are not all the same
     for (idx, other) in ciphertexts[1..].iter().enumerate() {
         if other != &ciphertexts[0] {
-            panic!(concat!("Error: share 1 and {} do not seem to belong to the same secret, ",
+            error!(concat!("Error: share 1 and {} do not seem to belong to the same secret, ",
                            "please check if none of the shares are corrupted"),
-                   idx + 1)
+                   idx + 1);
+            exit(1);
         }
     }
 
     // Restore the encryption key
     let key = match combine_keyshares(&keyshares) {
         Ok(x) => x,
-        Err(err) => panic!("Error while combining shares: {}", err),
+        Err(err) => {
+            error!("Error while combining shares: {}", err);
+            exit(1)
+        },
     };
 
     let mut secret = Vec::new();
@@ -78,8 +94,14 @@ fn main() {
                                 &NONCE,
                                 &key) {
         Ok(Some(())) => (),
-        Ok(None) => panic!("Shares did not combine to a valid secret"),
-        Err(err) => panic!("Error while combining shares: {}", err),
+        Ok(None) => {
+            error!("Shares did not combine to a valid secret");
+            exit(1);
+            },
+        Err(err) => {
+            error!("Error while combining shares: {}", err);
+            exit(1);
+            },
     }
 
     // TODO(dsprenkels) In the case of binary data, output to stdout only if it is not a tty
@@ -91,8 +113,8 @@ fn main() {
                 .iter()
                 .map(|b| format!("{:02x}", b))
                 .collect::<String>();
-            eprintln!("Warning: Invalid utf-8 text, some symbols may be lost!");
-            eprintln!("Note: The hex representation of the secret is '{}'.", hex);
+            info!("Warning: Invalid utf-8 text, some symbols may be lost!");
+            debug!("Note: The hex representation of the secret is '{}'.", hex);
             println!("Restored secret: '{}'", String::from_utf8_lossy(bytes));
         }
     }
