@@ -33,8 +33,10 @@ fn main() {
     let mut shares_string = String::new();
     input_file
         .read_to_string(&mut shares_string)
-        .unwrap_or_else(|err| { error!("Error while reading stdin: {}", err);
-                                exit(1)});
+        .unwrap_or_else(|err| { 
+            error!("Error while reading stdin: {}", err);
+            exit(1)
+        });
     let lines = shares_string.lines().collect::<Vec<&str>>();
 
     // Decode the lines
@@ -97,11 +99,11 @@ fn main() {
         Ok(None) => {
             error!("Shares did not combine to a valid secret");
             exit(1);
-            },
+        },
         Err(err) => {
             error!("Error while combining shares: {}", err);
             exit(1);
-            },
+        },
     }
 
     // TODO(dsprenkels) In the case of binary data, output to stdout only if it is not a tty
@@ -113,8 +115,8 @@ fn main() {
                 .iter()
                 .map(|b| format!("{:02x}", b))
                 .collect::<String>();
-            info!("Warning: Invalid utf-8 text, some symbols may be lost!");
-            debug!("Note: The hex representation of the secret is '{}'.", hex);
+            warn!("Warning: Invalid utf-8 text, some symbols may be lost!");
+            info!("Note: The hex representation of the secret is '{}'.", hex);
             println!("Restored secret: '{}'", String::from_utf8_lossy(bytes));
         }
     }
