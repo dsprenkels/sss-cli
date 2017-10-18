@@ -66,7 +66,7 @@ fn main() {
             Box::new(File::open(input_fn).unwrap_or_else(|err| {
                 error!("Error while opening file '{}': {}", input_fn, err);
                 exit(1);
-        }))
+            }))
         }
     };
     // We are not able to use the normal API for variable length plaintexts, so we will have to
