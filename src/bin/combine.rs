@@ -6,8 +6,9 @@ extern crate log;
 extern crate shamirsecretsharing;
 extern crate shamirsecretsharing_cli;
 
-use std::process::exit;
+use std::env;
 use std::io::prelude::*;
+use std::process::exit;
 
 use clap::{App, ArgMatches};
 use shamirsecretsharing::hazmat::{combine_keyshares, KEYSHARE_SIZE};
@@ -23,6 +24,11 @@ fn argparse<'a>() -> ArgMatches<'a> {
 }
 
 fn main() {
+    // If not log level has been set, default to info
+    if env::var_os("RUST_LOG") == None {
+        env::set_var("RUST_LOG", "secret_share_combine=info");
+    }
+
     // Init env_logger
     env_logger::init().expect("Failed to initiate logger");
 
@@ -33,7 +39,7 @@ fn main() {
     let mut shares_string = String::new();
     input_file
         .read_to_string(&mut shares_string)
-        .unwrap_or_else(|err| { 
+        .unwrap_or_else(|err| {
             error!("Error while reading stdin: {}", err);
             exit(1)
         });

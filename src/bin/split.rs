@@ -7,9 +7,10 @@ extern crate rand;
 extern crate shamirsecretsharing_cli;
 extern crate shamirsecretsharing;
 
-use std::process::exit;
-use std::io::prelude::*;
+use std::env;
 use std::fs::File;
+use std::io::prelude::*;
+use std::process::exit;
 
 use clap::{App, Arg, ArgMatches};
 use rand::random;
@@ -42,6 +43,11 @@ fn argparse<'a>() -> ArgMatches<'a> {
 }
 
 fn main() {
+    // If not log level has been set, default to info
+    if env::var_os("RUST_LOG") == None {
+        env::set_var("RUST_LOG", "secret_share_split=info");
+    }
+
     // Init env_logger
     env_logger::init().expect("Failed to initiate logger");
 
