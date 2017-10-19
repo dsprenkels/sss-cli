@@ -44,3 +44,8 @@ so that the shares cannot be tampered with, which takes up some extra space.
 [Rust]: https://www.rust-lang.org/
 [rustup]: https://rustup.rs/
 [crates.io]: https://crates.io/
+
+# Questions
+
+Feel free to [open an issue](https://github.com/dsprenkels/sss-cli/issues/new)
+or send me an email on my Github associated e-mail address.
