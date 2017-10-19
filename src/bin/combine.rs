@@ -37,17 +37,19 @@ fn main() {
     let _ = argparse();
 
     // Read each line
+    trace!("reading shares to memory");
     let mut input_file = std::io::stdin();
     let mut shares_string = String::new();
     input_file
         .read_to_string(&mut shares_string)
         .unwrap_or_else(|err| {
-                            error!("error while reading stdin: {}", err);
-                            exit(1)
-                        });
+            error!("error while reading stdin: {}", err);
+            exit(1)
+        });
     let lines = shares_string.lines().filter(|x| !x.is_empty()).collect::<Vec<&str>>();
 
     // Decode the lines
+    trace!("decoding shares");
     if lines.is_empty() {
         error!("no input shares supplied");
         exit(1);
@@ -80,6 +82,7 @@ fn main() {
     }
 
     // Split off the keyshares
+    trace!("splittings off keyshares from ciphertexts");
     let mut keyshares = Vec::with_capacity(decoded_lines.len());
     let mut ciphertexts = Vec::with_capacity(decoded_lines.len());
     for line in &decoded_lines {
@@ -99,6 +102,7 @@ fn main() {
     }
 
     // Restore the encryption key
+    trace!("restoring encryption key");
     let key = match combine_keyshares(&keyshares) {
         Ok(x) => x,
         Err(err) => {
@@ -108,6 +112,7 @@ fn main() {
     };
 
     let mut secret = Vec::new();
+    trace!("decrypting secret");
     match crypto_secretbox_open(&mut secret as &mut Write,
                                 &mut ciphertexts[0] as &mut Read,
                                 &NONCE,
@@ -128,15 +133,18 @@ fn main() {
         Err(utf8err) => {
             let bytes = utf8err.into_bytes();
             if atty::is(atty::Stream::Stdout) {
-                let hex = &bytes.iter()
-                                .map(|b| format!("{:02x}", b))
-                                .collect::<String>();
                 warn!("invalid utf-8 text, some symbols may be lost!");
-                info!("the hex representation of the secret is '{}'.", hex);
+                let hex = &bytes.iter()
+                    .map(|b| format!("{:02x}", b))
+                    .take(80)
+                    .collect::<String>();
+                let ellipsis = if bytes.len() > 80 { "..." } else { "" };
+                info!("the hex representation of the secret is '{}{}'.", hex, ellipsis);
             }
             bytes
         }
     };
+    debug!("writing secret to output file");
     if let Err(err) = io::stdout().write_all(&bytes) {
         error!("{}", err);
         exit(1);

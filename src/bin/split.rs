@@ -8,6 +8,7 @@ extern crate shamirsecretsharing_cli;
 extern crate shamirsecretsharing;
 
 use std::env;
+use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::process::exit;
@@ -59,34 +60,31 @@ fn main() {
         .unwrap()
         .parse::<isize>()
         .map_err(|_| {
-                     error!("count is not a valid number");
-                     exit(1);
-                 })
+            error!("count is not a valid number");
+            exit(1);
+        })
         .and_then(|x| if 2 <= x && x <= 255 { Ok(x) } else { Err(x) })
         .unwrap_or_else(|x| {
-                            error!("count must be a number between 2 and 255 (instead of {})",
-                                   x);
-                            exit(1);
-                        }) as u8;
+            error!("count must be a number between 2 and 255 (instead of {})", x);
+            exit(1);
+        }) as u8;
     let treshold = matches
         .value_of("threshold")
         .unwrap()
         .parse::<isize>()
         .map_err(|_| {
-                     error!("threshold is not a valid number");
-                     exit(1);
-                 })
+            error!("threshold is not a valid number");
+            exit(1);
+        })
         .and_then(|x| if 2 <= x && x <= (count as isize) {
-                      Ok(x)
-                  } else {
-                      Err(x)
-                  })
+                Ok(x)
+            } else {
+                Err(x)
+            })
         .unwrap_or_else(|x| {
-                            error!("threshold must be a number between 2 and {} (instead of {})",
-                                   count,
-                                   x);
-                            exit(1);
-                        }) as u8;
+                error!("threshold must be a number between 2 and {} (instead of {})", count, x);
+                exit(1);
+            }) as u8;
 
     // Open the input file and read its contents
     let mut input_file: Box<Read> = match input_fn {
@@ -101,29 +99,46 @@ fn main() {
     // We are not able to use the normal API for variable length plaintexts, so we will have to
     // use the hazmat API and encrypt the file ourselves
     let key: [u8; KEY_SIZE] = random();
-    let keyshares = create_keyshares(&key, count, treshold).unwrap_or_else(|err| {
-                                                                               error!("{}", err);
-                                                                               exit(1);
-                                                                           });
+    trace!("creating keyshares");
+    let keyshares = create_keyshares(&key, count, treshold)
+        .unwrap_or_else(|err| {
+            error!("{}", err);
+            exit(1);
+        });
 
     // Encrypt the contents of the file
     let mut ciphertext = Vec::new();
+    trace!("encrypting secret");
     crypto_secretbox(&mut ciphertext as &mut Write,
                      &mut *input_file,
                      &NONCE,
                      &key)
-            .expect("unexpected error during encryption, this is probably a bug");
+        .expect("unexpected error during encryption, this is probably a bug");
 
     // Construct the full shares
-    let full_shares = keyshares
-        .iter()
-        .map(|ks| ks.iter().chain(ciphertext.iter()));
+    let full_shares = keyshares.iter()
+         .map(|ks| ks.iter()
+         .chain(ciphertext.iter()));
 
     // Write the shares to stdout
+    let mut buf = String::new();
+    let buf_maxsize = 4 * 2u32.pow(20) as usize;  // size 4Mb
+    trace!("writing shares to output file");
     for share in full_shares {
-        let line = share.map(|b| format!("{:02x}", b)).collect::<String>();
-        println!("{}", line);
+        for byte in share {
+            if let Err(err) = write!(&mut buf as &mut fmt::Write, "{:02x}", byte) {
+                error!("{}", err);
+                exit(1);
+            }
+            if buf.len() >= buf_maxsize {
+                print!("{}", buf);
+                buf.clear()
+            }
+        }
+        println!("{}", buf);
+        buf.clear()
     }
+    drop(buf);
 }
 
 #[cfg(test)]
