@@ -57,29 +57,36 @@ fn main() {
     let count = matches
         .value_of("count")
         .unwrap()
-        .parse()
+        .parse::<isize>()
         .map_err(|_| {
-            error!("count is not a valid number");
-            exit(1);
-        })
-        .and_then(|x| if 2 <= x { Ok(x) } else { Err(x) })
+                     error!("count is not a valid number");
+                     exit(1);
+                 })
+        .and_then(|x| if 2 <= x && x <= 255 { Ok(x) } else { Err(x) })
         .unwrap_or_else(|x| {
-            error!("count must be a number between 2 and 255 (instead of {})", x);
-            exit(1);
-        });
+                            error!("count must be a number between 2 and 255 (instead of {})",
+                                   x);
+                            exit(1);
+                        }) as u8;
     let treshold = matches
         .value_of("threshold")
         .unwrap()
-        .parse()
+        .parse::<isize>()
         .map_err(|_| {
-            error!("threshold is not a valid number");
-            exit(1);
-        })
-        .and_then(|x| if 2 <= x && x <= count { Ok(x) } else { Err(x) })
+                     error!("threshold is not a valid number");
+                     exit(1);
+                 })
+        .and_then(|x| if 2 <= x && x <= (count as isize) {
+                      Ok(x)
+                  } else {
+                      Err(x)
+                  })
         .unwrap_or_else(|x| {
-            error!("threshold must be a number between 2 and {} (instead of {})", count, x);
-            exit(1);
-        });
+                            error!("threshold must be a number between 2 and {} (instead of {})",
+                                   count,
+                                   x);
+                            exit(1);
+                        }) as u8;
 
     // Open the input file and read its contents
     let mut input_file: Box<Read> = match input_fn {
@@ -116,5 +123,145 @@ fn main() {
     for share in full_shares {
         let line = share.map(|b| format!("{:02x}", b)).collect::<String>();
         println!("{}", line);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate duct;
+    use self::duct::cmd;
+
+    macro_rules! cmd {
+        ( $program:expr, $( $arg:expr ),* ) => (
+            {
+                let args = [ $( $arg ),* ];
+                cmd($program, args.iter())
+            }
+        )
+    }
+
+    macro_rules! run_self {
+        ( $( $arg:expr ),* ) => (
+            {
+                let args = ["run", "--quiet", "--bin", "secret-share-split", "--", $( $arg ),* ];
+                cmd(env!("CARGO"), args.iter())
+            }
+        )
+    }
+
+    #[test]
+    fn functional() {
+        let secret = "Hello World!";
+        let echo = cmd!("echo", "-n", secret);
+        let output = echo.pipe(run_self!("--count", "5", "--threshold", "4"))
+            .read()
+            .unwrap();
+        let mut idx = 0;
+        for line in output.lines() {
+            assert_eq!(line.len(), 2 * (49 + secret.len()));
+            let x = format!("{:02}", idx + 1);
+            assert!(line.starts_with(&x));
+            idx += 1;
+        }
+        assert_eq!(idx, 5);
+    }
+
+    #[test]
+    fn no_args() {
+        let output = run_self!()
+            .unchecked()
+            .stderr_to_stdout()
+            .read()
+            .unwrap();
+        assert!(output.starts_with("error: The following required arguments were not provided:
+    --count <n>
+    --threshold <k>"));
+    }
+
+    #[test]
+    fn no_count() {
+        let output = run_self!("--threshold", "4")
+            .unchecked()
+            .stderr_to_stdout()
+            .read()
+            .unwrap();
+        assert!(output.starts_with("error: The following required arguments were not provided:
+    --count <n>"));
+    }
+
+    #[test]
+    fn no_threshold() {
+        let output = run_self!("--count", "5")
+            .unchecked()
+            .stderr_to_stdout()
+            .read()
+            .unwrap();
+        assert!(output.starts_with("error: The following required arguments were not provided:
+    --threshold <k>"));
+    }
+
+    #[test]
+    fn count_parse() {
+        let output = run_self!("--count", "not a number", "--threshold", "4")
+            .unchecked()
+            .stderr_to_stdout()
+            .read()
+            .unwrap();
+        assert_eq!(output, format!("ERROR:secret_share_split: count is not a valid number"));
+    }
+
+    #[test]
+    fn count_range() {
+        macro_rules! test_bad_count {
+            ($n:expr, $k:expr) => (
+                let output = run_self!("--count", $n, "--threshold", $k)
+                    .unchecked().stderr_to_stdout().read().unwrap();
+                assert_eq!(output, format!("ERROR:secret_share_split: \
+                                            count must be a number between 2 \
+                                            and 255 (instead of {})", $n));
+            )
+        }
+        test_bad_count!("0", "4");
+        test_bad_count!("1", "4");
+        test_bad_count!("256", "4");
+    }
+
+    #[test]
+    fn threshold_parse() {
+        let output = run_self!("--count", "5", "--threshold", "not a number")
+            .unchecked()
+            .stderr_to_stdout()
+            .read()
+            .unwrap();
+        assert_eq!(output, format!("ERROR:secret_share_split: threshold is not a valid number"));
+    }
+
+    #[test]
+    fn threshold_range() {
+        macro_rules! test_bad_threshold {
+            ($n:expr, $k:expr) => (
+                let output = run_self!("--count", $n, "--threshold", $k)
+                    .unchecked().stderr_to_stdout().read().unwrap();
+                assert_eq!(output, format!("ERROR:secret_share_split: \
+                                            threshold must be a number between 2 and \
+                                            5 (instead of {})", $k));
+            )
+        }
+        test_bad_threshold!("5", "0");
+        test_bad_threshold!("5", "1");
+        test_bad_threshold!("5", "6");
+        test_bad_threshold!("5", "256");
+    }
+
+    #[test]
+    fn nonexistent_file() {
+        let output = run_self!("--count", "5", "--threshold", "4", "nonexistent")
+            .unchecked()
+            .stderr_to_stdout()
+            .read()
+            .unwrap();
+        assert_eq!(output,
+                   "ERROR:secret_share_split: error while opening file \'nonexistent\': \
+                   No such file or directory (os error 2)");
     }
 }
