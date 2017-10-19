@@ -12,6 +12,8 @@ name = "secret-share-combine"
 path = "src/bin/combine.rs"
 
 [dependencies]
+log = "0.3"
+env_logger = "0.4"
 shamirsecretsharing = "0.1"
 rand = "0.3"
 libc = "0.2"
