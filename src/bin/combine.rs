@@ -154,6 +154,8 @@ fn main() {
 #[cfg(test)]
 mod tests {
     extern crate duct;
+
+    use std::iter::repeat;
     use self::duct::cmd;
 
     macro_rules! cmd {
@@ -183,6 +185,15 @@ mod tests {
         let combine = split.pipe(run_self!());
         let output = combine.read().unwrap();
         assert_eq!(output, secret);
+    }
+
+    #[test]
+    fn not_enough_shares() {
+        let shares = repeat("00").take(113).collect::<String>();
+        let echo = cmd!("echo", shares);
+        let combine = echo.pipe(run_self!()).unchecked().stderr_to_stdout();
+        let output = combine.read().unwrap();
+        assert_eq!(output, "ERROR:secret_share_combine: shares did not combine to a valid secret");
     }
 
     #[test]
