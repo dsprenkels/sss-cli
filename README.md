@@ -15,11 +15,11 @@ you can install these tools using [Cargo][crates.io]:
 # Install sss-cli
 cargo install --git https://github.com/dsprenkels/sss-cli
 
-# Make 3 shares with recombination threshold 2
-echo "Tyler Durden isn't real." | secret-share-split -n 3 -t 2 >shares.txt
+# Make 4 shares with recombination threshold 3
+echo "Tyler Durden isn't real." | secret-share-split -n 4 -t 3 >shares.txt
 
-# Take the first 2 shares and combine them
-head -n 2 shares.txt | secret-share-combine
+# Take the first 3 shares and combine them
+head -n 3 shares.txt | secret-share-combine
 ```
 
 To uninstall the crate you can use a command similar to the install-command
