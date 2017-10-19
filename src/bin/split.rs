@@ -58,19 +58,35 @@ fn main() {
         .value_of("count")
         .unwrap()
         .parse()
-        .expect("count must be a number between 2 and 255 (inclusive)");
+        .map_err(|_| {
+            error!("count is not a valid number");
+            exit(1);
+        })
+        .and_then(|x| if 2 <= x { Ok(x) } else { Err(x) })
+        .unwrap_or_else(|x| {
+            error!("count must be a number between 2 and 255 (instead of {})", x);
+            exit(1);
+        });
     let treshold = matches
         .value_of("threshold")
         .unwrap()
         .parse()
-        .expect("threshold must be a number between 2 and `count`");
+        .map_err(|_| {
+            error!("threshold is not a valid number");
+            exit(1);
+        })
+        .and_then(|x| if 2 <= x && x <= count { Ok(x) } else { Err(x) })
+        .unwrap_or_else(|x| {
+            error!("threshold must be a number between 2 and {} (instead of {})", count, x);
+            exit(1);
+        });
 
     // Open the input file and read its contents
     let mut input_file: Box<Read> = match input_fn {
         None | Some("-") => Box::new(std::io::stdin()),
         Some(input_fn) => {
             Box::new(File::open(input_fn).unwrap_or_else(|err| {
-                error!("Error while opening file '{}': {}", input_fn, err);
+                error!("error while opening file '{}': {}", input_fn, err);
                 exit(1);
             }))
         }
@@ -89,7 +105,7 @@ fn main() {
                      &mut *input_file,
                      &NONCE,
                      &key)
-            .expect("Unexpected error during encryption, this is probably a bug");
+            .expect("unexpected error during encryption, this is probably a bug");
 
     // Construct the full shares
     let full_shares = keyshares

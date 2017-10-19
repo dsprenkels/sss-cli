@@ -31,7 +31,7 @@ fn main() {
     }
 
     // Init env_logger
-    env_logger::init().expect("Failed to initiate logger");
+    env_logger::init().expect("failed to initiate logger");
 
     let _ = argparse();
 
@@ -41,20 +41,20 @@ fn main() {
     input_file
         .read_to_string(&mut shares_string)
         .unwrap_or_else(|err| {
-            error!("Error while reading stdin: {}", err);
-            exit(1)
-        });
+                            error!("error while reading stdin: {}", err);
+                            exit(1)
+                        });
     let lines = shares_string.lines().collect::<Vec<&str>>();
 
     // Decode the lines
     if lines.is_empty() {
-        error!("No input shares supplied");
+        error!("no input shares supplied");
         exit(1);
     }
     let mut decoded_lines = Vec::with_capacity(lines.len());
     for (line_idx, line) in lines.iter().enumerate() {
         if line.len() % 2 != 0 {
-            error!("Share {} is not a valid hex string (its length is not even)",
+            error!("share {} is of an incorrect length (the length is not even)",
                    line_idx + 1);
             exit(1);
         }
@@ -64,9 +64,9 @@ fn main() {
             let b = match u8::from_str_radix(&line[offset..offset + 2], 16) {
                 Ok(x) => x,
                 Err(err) => {
-                    error!("Error while decoding share {}: {}", line_idx + 1, err);
+                    error!("error while decoding share {}: {}", line_idx + 1, err);
                     exit(1);
-                },
+                }
             };
             decoded_line.push(b);
             offset += 2;
@@ -86,8 +86,8 @@ fn main() {
     // Error if the ciphertexts are not all the same
     for (idx, other) in ciphertexts[1..].iter().enumerate() {
         if other != &ciphertexts[0] {
-            error!(concat!("Error: share 1 and {} do not seem to belong to the same secret, ",
-                           "please check if none of the shares are corrupted"),
+            error!("share 1 and {} do not seem to belong to the same secret. \
+                    Please check if none of the shares are corrupted.",
                    idx + 1);
             exit(1);
         }
@@ -97,9 +97,9 @@ fn main() {
     let key = match combine_keyshares(&keyshares) {
         Ok(x) => x,
         Err(err) => {
-            error!("Error while combining shares: {}", err);
+            error!("{}", err);
             exit(1)
-        },
+        }
     };
 
     let mut secret = Vec::new();
@@ -109,29 +109,30 @@ fn main() {
                                 &key) {
         Ok(Some(())) => (),
         Ok(None) => {
-            error!("Shares did not combine to a valid secret");
+            error!("shares did not combine to a valid secret");
             exit(1);
-        },
+        }
         Err(err) => {
-            error!("Error while combining shares: {}", err);
+            error!("{}", err);
             exit(1);
-        },
-    }
-
-    match String::from_utf8(secret) {
-        Ok(text) => eprintln!("Restored secret: '{}'", text),
-        Err(utf8err) => {
-            let bytes = &utf8err.into_bytes();
-            let hex = bytes
-                .iter()
-                .map(|b| format!("{:02x}", b))
-                .collect::<String>();
-            warn!("Invalid utf-8 text, some symbols may be lost!");
-            info!("The hex representation of the secret is '{}'.", hex);
-            if let Err(err) = io::stdout().write_all(bytes) {
-                error!("{}", err);
-                exit(1);
-            };
         }
     }
+
+    let bytes = match String::from_utf8(secret) {
+        Ok(text) => text.into_bytes(),
+        Err(utf8err) => {
+            // TODO(dsprenkels) Do not print this warning if we are not writing to a tty
+            let bytes = utf8err.into_bytes();
+            let hex = &bytes.iter()
+                            .map(|b| format!("{:02x}", b))
+                            .collect::<String>();
+            warn!("invalid utf-8 text, some symbols may be lost!");
+            info!("the hex representation of the secret is '{}'.", hex);
+            bytes
+        }
+    };
+    if let Err(err) = io::stdout().write_all(&bytes) {
+        error!("{}", err);
+        exit(1);
+    };
 }
