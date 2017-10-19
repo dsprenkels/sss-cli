@@ -53,6 +53,11 @@ fn main() {
     }
     let mut decoded_lines = Vec::with_capacity(lines.len());
     for (line_idx, line) in lines.iter().enumerate() {
+        if line.len() % 2 != 0 {
+            error!("Share {} is not a valid hex string (its length is not even)",
+                   line_idx + 1);
+            exit(1);
+        }
         let mut decoded_line = Vec::with_capacity(line.len() / 2);
         let mut offset = 0;
         while offset < line.len() {
