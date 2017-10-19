@@ -16,7 +16,7 @@ you can install these tools using [Cargo][crates.io]:
 cargo install --git https://github.com/dsprenkels/sss-cli
 
 # Make 3 shares with recombination threshold 2
-echo -n "Tyler Durden isn't real." | secret-share-split -n 3 -t 2 >shares.txt
+echo "Tyler Durden isn't real." | secret-share-split -n 3 -t 2 >shares.txt
 
 # Take the first 2 shares and combine them
 head -n 2 shares.txt | secret-share-combine
