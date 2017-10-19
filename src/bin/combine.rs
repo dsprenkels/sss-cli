@@ -7,6 +7,7 @@ extern crate shamirsecretsharing;
 extern crate shamirsecretsharing_cli;
 
 use std::env;
+use std::io;
 use std::io::prelude::*;
 use std::process::exit;
 
@@ -112,7 +113,6 @@ fn main() {
         },
     }
 
-    // TODO(dsprenkels) In the case of binary data, output to stdout only if it is not a tty
     match String::from_utf8(secret) {
         Ok(text) => eprintln!("Restored secret: '{}'", text),
         Err(utf8err) => {
@@ -121,9 +121,12 @@ fn main() {
                 .iter()
                 .map(|b| format!("{:02x}", b))
                 .collect::<String>();
-            warn!("Warning: Invalid utf-8 text, some symbols may be lost!");
-            info!("Note: The hex representation of the secret is '{}'.", hex);
-            println!("Restored secret: '{}'", String::from_utf8_lossy(bytes));
+            warn!("Invalid utf-8 text, some symbols may be lost!");
+            info!("The hex representation of the secret is '{}'.", hex);
+            if let Err(err) = io::stdout().write_all(bytes) {
+                error!("{}", err);
+                exit(1);
+            };
         }
     }
 }
