@@ -1,3 +1,4 @@
+extern crate atty;
 #[macro_use]
 extern crate clap;
 extern crate env_logger;
@@ -121,13 +122,14 @@ fn main() {
     let bytes = match String::from_utf8(secret) {
         Ok(text) => text.into_bytes(),
         Err(utf8err) => {
-            // TODO(dsprenkels) Do not print this warning if we are not writing to a tty
             let bytes = utf8err.into_bytes();
-            let hex = &bytes.iter()
-                            .map(|b| format!("{:02x}", b))
-                            .collect::<String>();
-            warn!("invalid utf-8 text, some symbols may be lost!");
-            info!("the hex representation of the secret is '{}'.", hex);
+            if atty::is(atty::Stream::Stdout) {
+                let hex = &bytes.iter()
+                                .map(|b| format!("{:02x}", b))
+                                .collect::<String>();
+                warn!("invalid utf-8 text, some symbols may be lost!");
+                info!("the hex representation of the secret is '{}'.", hex);
+            }
             bytes
         }
     };

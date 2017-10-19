@@ -12,11 +12,12 @@ name = "secret-share-combine"
 path = "src/bin/combine.rs"
 
 [dependencies]
-log = "0.3"
+atty = "0.2"
 env_logger = "0.4"
-shamirsecretsharing = "0.1"
-rand = "0.3"
 libc = "0.2"
+log = "0.3"
+rand = "0.3"
+shamirsecretsharing = "0.1"
 
 [dependencies.clap]
 version = "2.25"
