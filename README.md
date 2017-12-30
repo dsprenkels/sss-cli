@@ -37,7 +37,7 @@ cargo uninstall shamirsecretsharing-cli
 This Shamir secret sharing library *could* produce shares that are shorter than
 their current length. However, while Shamir secret sharing is secure for
 confidentiality, this is not the case for integrity. An attacker could tamper
-with some of the shares After restoring the (malicious) secret, you would not
+with some of the shares. After restoring the (malicious) secret, you would not
 be able to know that it has been tampered with. `sss-cli` uses an AEAD wrapper
 so that the shares cannot be tampered with, which takes up some extra space.
 
