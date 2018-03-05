@@ -32,7 +32,7 @@ fn main() {
     }
 
     // Init env_logger
-    env_logger::init().expect("failed to initiate logger");
+    env_logger::init();
 
     let _ = argparse();
 
@@ -176,6 +176,9 @@ mod tests {
         )
     }
 
+    /// Equal to `"ERROR 2018-03-04T11:55:09Z: ".len()`
+    const MSG_OFFSET: usize = 28;
+
     #[test]
     fn functional() {
         let secret = "secret";
@@ -193,7 +196,8 @@ mod tests {
         let echo = cmd!("echo", shares);
         let combine = echo.pipe(run_self!()).unchecked().stderr_to_stdout();
         let output = combine.read().unwrap();
-        assert_eq!(output, "ERROR:secret_share_combine: shares did not combine to a valid secret");
+        assert_eq!(&output[0..5], "ERROR");
+        assert_eq!(&output[MSG_OFFSET..], "secret_share_combine: shares did not combine to a valid secret");
     }
 
     #[test]
@@ -201,7 +205,8 @@ mod tests {
         let echo = cmd!("echo", "");
         let combine = echo.pipe(run_self!()).unchecked().stderr_to_stdout();
         let output = combine.read().unwrap();
-        assert_eq!(output, "ERROR:secret_share_combine: no input shares supplied");
+        assert_eq!(&output[0..5], "ERROR");
+        assert_eq!(&output[MSG_OFFSET..], "secret_share_combine: no input shares supplied");
     }
 
     #[test]
@@ -209,8 +214,9 @@ mod tests {
         let echo = cmd!("echo", "0");
         let combine = echo.pipe(run_self!()).unchecked().stderr_to_stdout();
         let output = combine.read().unwrap();
-        assert_eq!(output, "ERROR:secret_share_combine: share 1 is of an incorrect length \
-                            (the length is not even)");
+        assert_eq!(&output[0..5], "ERROR");
+        assert_eq!(&output[MSG_OFFSET..], "secret_share_combine: share 1 is of an incorrect length \
+                                           (the length is not even)");
     }
 
     #[test]
@@ -218,7 +224,8 @@ mod tests {
         let echo = cmd!("echo", "00");
         let combine = echo.pipe(run_self!()).unchecked().stderr_to_stdout();
         let output = combine.read().unwrap();
-        assert_eq!(output, "ERROR:secret_share_combine: share 1 is too short");
+        assert_eq!(&output[0..5], "ERROR");
+        assert_eq!(&output[MSG_OFFSET..], "secret_share_combine: share 1 is too short");
     }
 
     #[test]

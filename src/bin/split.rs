@@ -50,7 +50,7 @@ fn main() {
     }
 
     // Init env_logger
-    env_logger::init().expect("Failed to initiate logger");
+    env_logger::init();
 
     // Parse command line arguments
     let matches = argparse();
@@ -164,6 +164,9 @@ mod tests {
         )
     }
 
+    /// Equal to `"ERROR 2018-03-04T11:55:09Z: ".len()`
+    const MSG_OFFSET: usize = 28;
+
     #[test]
     fn functional() {
         let secret = "Hello World!";
@@ -222,7 +225,8 @@ mod tests {
             .stderr_to_stdout()
             .read()
             .unwrap();
-        assert_eq!(output, format!("ERROR:secret_share_split: count is not a valid number"));
+        assert_eq!(&output[0..5], "ERROR");
+        assert_eq!(&output[MSG_OFFSET..], "secret_share_split: count is not a valid number");
     }
 
     #[test]
@@ -231,9 +235,10 @@ mod tests {
             ($n:expr, $k:expr) => (
                 let output = run_self!("--count", $n, "--threshold", $k)
                     .unchecked().stderr_to_stdout().read().unwrap();
-                assert_eq!(output, format!("ERROR:secret_share_split: \
-                                            count must be a number between 2 \
-                                            and 255 (instead of {})", $n));
+                assert_eq!(&output[0..5], "ERROR");
+                assert_eq!(&output[MSG_OFFSET..], format!("secret_share_split: \
+                                                           count must be a number between 2 \
+                                                           and 255 (instead of {})", $n));
             )
         }
         test_bad_count!("0", "4");
@@ -248,7 +253,8 @@ mod tests {
             .stderr_to_stdout()
             .read()
             .unwrap();
-        assert_eq!(output, format!("ERROR:secret_share_split: threshold is not a valid number"));
+        assert_eq!(&output[0..5], "ERROR");
+        assert_eq!(&output[MSG_OFFSET..], "secret_share_split: threshold is not a valid number");
     }
 
     #[test]
@@ -257,9 +263,10 @@ mod tests {
             ($n:expr, $k:expr) => (
                 let output = run_self!("--count", $n, "--threshold", $k)
                     .unchecked().stderr_to_stdout().read().unwrap();
-                assert_eq!(output, format!("ERROR:secret_share_split: \
-                                            threshold must be a number between 2 and \
-                                            5 (instead of {})", $k));
+                assert_eq!(&output[0..5], "ERROR");
+                assert_eq!(&output[MSG_OFFSET..], format!("secret_share_split: \
+                                                           threshold must be a number between 2 \
+                                                           and 5 (instead of {})", $k));
             )
         }
         test_bad_threshold!("5", "0");
@@ -275,8 +282,9 @@ mod tests {
             .stderr_to_stdout()
             .read()
             .unwrap();
-        assert_eq!(output,
-                   "ERROR:secret_share_split: error while opening file \'nonexistent\': \
-                   No such file or directory (os error 2)");
+        assert_eq!(&output[0..5], "ERROR");
+        assert_eq!(&output[MSG_OFFSET..],
+                   "secret_share_split: error while opening file \'nonexistent\': \
+                    No such file or directory (os error 2)");
     }
 }
