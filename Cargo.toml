@@ -25,4 +25,4 @@ default-features = false
 features = [ "suggestions", "color" ]
 
 [dev-dependencies]
-duct = "0.10"
+duct = "0.12"
