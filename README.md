@@ -13,7 +13,7 @@ you can install these tools using [Cargo][crates.io]:
 
 ```shell
 # Install sss-cli
-cargo install --git https://github.com/dsprenkels/sss-cli
+cargo install --git https://github.com/dsprenkels/sss-cli --branch v0.1
 
 # Make 4 shares with recombination threshold 3
 echo "Tyler Durden isn't real." | secret-share-split -n 4 -t 3 >shares.txt
