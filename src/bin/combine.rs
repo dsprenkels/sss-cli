@@ -113,8 +113,8 @@ fn main() {
 
     let mut secret = Vec::new();
     trace!("decrypting secret");
-    match crypto_secretbox_open(&mut secret as &mut Write,
-                                &mut ciphertexts[0] as &mut Read,
+    match crypto_secretbox_open(&mut secret as &mut dyn Write,
+                                &mut ciphertexts[0] as &mut dyn Read,
                                 &NONCE,
                                 &key) {
         Ok(Some(())) => (),

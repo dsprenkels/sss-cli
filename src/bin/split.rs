@@ -87,7 +87,7 @@ fn main() {
             }) as u8;
 
     // Open the input file and read its contents
-    let mut input_file: Box<Read> = match input_fn {
+    let mut input_file: Box<dyn Read> = match input_fn {
         None | Some("-") => Box::new(std::io::stdin()),
         Some(input_fn) => {
             Box::new(File::open(input_fn).unwrap_or_else(|err| {
@@ -109,7 +109,7 @@ fn main() {
     // Encrypt the contents of the file
     let mut ciphertext = Vec::new();
     trace!("encrypting secret");
-    crypto_secretbox(&mut ciphertext as &mut Write,
+    crypto_secretbox(&mut ciphertext as &mut dyn Write,
                      &mut *input_file,
                      &NONCE,
                      &key)
@@ -126,7 +126,7 @@ fn main() {
     trace!("writing shares to output file");
     for share in full_shares {
         for byte in share {
-            if let Err(err) = write!(&mut buf as &mut fmt::Write, "{:02x}", byte) {
+            if let Err(err) = write!(&mut buf as &mut dyn fmt::Write, "{:02x}", byte) {
                 error!("{}", err);
                 exit(1);
             }
