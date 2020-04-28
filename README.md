@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/dsprenkels/sss-cli.svg?branch=master)](https://travis-ci.org/dsprenkels/sss-cli)
 
 This tool allows for securely splitting and recombining secrets using a secure
-implementaion of the Shamir secret sharing scheme. It is a wrapper around my
+implementation of the Shamir secret sharing scheme. It is a wrapper around my
 [SSS library](https://github.com/dsprenkels/sss).
 
 # Usage
