@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/dsprenkels/sss-cli.svg?branch=master)](https://travis-ci.org/dsprenkels/sss-cli)
 
 This tool allows for securely splitting and recombining secrets using a secure
-implementaion of the Shamir secret sharing scheme. It is a wrapper around my
+implementation of the Shamir secret sharing scheme. It is a wrapper around my
 [SSS library](https://github.com/dsprenkels/sss).
 
 # Usage
@@ -22,6 +22,9 @@ echo "Tyler Durden isn't real." | secret-share-split -n 4 -t 3 >shares.txt
 head -n 3 shares.txt | secret-share-combine
 ```
 
+Note that after this installation, you need to add Cargo's installation
+directory to your `$PATH` if you don't have it there yet.
+
 To uninstall the crate you can use a command similar to the install-command
 above.
 
@@ -29,6 +32,14 @@ above.
 # Uninstall the secret sharing tools
 cargo uninstall shamirsecretsharing-cli
 ```
+
+## macOS
+
+To install on macOS system, you can also use [Homebrew](https://brew.sh) package
+manager. The package is not yet in the upstream *homebrew-core*, but there exists a tap
+with **sss-cli** formula [here](https://github.com/vitkabele/homebrew-tap).
+
+To install using Homebrew, run: `brew install vitkabele/tap/sss-cli`.
 
 # F.A.Q.
 
