@@ -1,7 +1,6 @@
 [package]
 name = "shamirsecretsharing-cli"
 version = "0.1.1"
-authors = ["Daan Sprenkels <hello@dsprenkels.com>"]
 
 [[bin]]
 name = "secret-share-split"
