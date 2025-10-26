@@ -1,6 +1,7 @@
 extern crate atty;
 #[macro_use]
 extern crate clap;
+extern crate crypto_secretbox;
 extern crate env_logger;
 #[macro_use]
 extern crate log;
@@ -13,8 +14,12 @@ use std::io::prelude::*;
 use std::process::exit;
 
 use clap::{App, ArgMatches};
+use crypto_secretbox::{
+    aead::{Aead, KeyInit},
+    XSalsa20Poly1305,
+};
 use shamirsecretsharing::hazmat::{combine_keyshares, KEYSHARE_SIZE};
-use shamirsecretsharing_cli::*;
+use shamirsecretsharing_cli::NONCE;
 
 /// Parse the command line arguments
 fn argparse<'a>() -> ArgMatches<'a> {
@@ -46,7 +51,10 @@ fn main() {
             error!("error while reading stdin: {}", err);
             exit(1)
         });
-    let lines = shares_string.lines().filter(|x| !x.is_empty()).collect::<Vec<&str>>();
+    let lines = shares_string
+        .lines()
+        .filter(|x| !x.is_empty())
+        .collect::<Vec<&str>>();
 
     // Decode the lines
     trace!("decoding shares");
@@ -57,8 +65,10 @@ fn main() {
     let mut decoded_lines = Vec::with_capacity(lines.len());
     for (line_idx, line) in lines.iter().enumerate() {
         if line.len() % 2 != 0 {
-            error!("share {} is of an incorrect length (the length is not even)",
-                   line_idx + 1);
+            error!(
+                "share {} is of an incorrect length (the length is not even)",
+                line_idx + 1
+            );
             exit(1);
         }
         let mut decoded_line = Vec::with_capacity(line.len() / 2);
@@ -94,9 +104,11 @@ fn main() {
     // Error if the ciphertexts are not all the same
     for (idx, other) in ciphertexts[1..].iter().enumerate() {
         if other != &ciphertexts[0] {
-            error!("share 1 and {} do not seem to belong to the same secret. \
+            error!(
+                "share 1 and {} do not seem to belong to the same secret. \
                     Please check if none of the shares are corrupted.",
-                   idx + 1);
+                idx + 1
+            );
             exit(1);
         }
     }
@@ -111,22 +123,17 @@ fn main() {
         }
     };
 
-    let mut secret = Vec::new();
     trace!("decrypting secret");
-    match crypto_secretbox_open(&mut secret as &mut dyn Write,
-                                &mut ciphertexts[0] as &mut dyn Read,
-                                &NONCE,
-                                &key) {
-        Ok(Some(())) => (),
-        Ok(None) => {
+    let mut cipher_key: [u8; XSalsa20Poly1305::KEY_SIZE] = Default::default();
+    cipher_key.copy_from_slice(&key);
+    let cipher = XSalsa20Poly1305::new(&cipher_key.into());
+    let secret = match cipher.decrypt(&NONCE.into(), ciphertexts[0].as_ref()) {
+        Ok(plaintext) => plaintext,
+        Err(_) => {
             error!("shares did not combine to a valid secret");
             exit(1);
         }
-        Err(err) => {
-            error!("{}", err);
-            exit(1);
-        }
-    }
+    };
 
     let bytes = match String::from_utf8(secret) {
         Ok(text) => text.into_bytes(),
@@ -134,12 +141,16 @@ fn main() {
             let bytes = utf8err.into_bytes();
             if atty::is(atty::Stream::Stdout) {
                 warn!("invalid utf-8 text, some symbols may be lost!");
-                let hex = &bytes.iter()
+                let hex = &bytes
+                    .iter()
                     .map(|b| format!("{:02x}", b))
                     .take(80)
                     .collect::<String>();
                 let ellipsis = if bytes.len() > 80 { "..." } else { "" };
-                info!("the hex representation of the secret is '{}{}'.", hex, ellipsis);
+                info!(
+                    "the hex representation of the secret is '{}{}'.",
+                    hex, ellipsis
+                );
             }
             bytes
         }
@@ -155,8 +166,8 @@ fn main() {
 mod tests {
     extern crate duct;
 
-    use std::iter::repeat;
     use self::duct::cmd;
+    use std::iter::repeat;
 
     macro_rules! cmd {
         ( $program:expr, $( $arg:expr ),* ) => (
@@ -183,8 +194,18 @@ mod tests {
     fn functional() {
         let secret = "secret";
         let echo = cmd!("echo", secret);
-        let split = echo.pipe(cmd!(env!("CARGO"), "run", "--quiet", "--bin", "secret-share-split",
-                                   "--", "--count", "5", "--threshold", "4"));
+        let split = echo.pipe(cmd!(
+            env!("CARGO"),
+            "run",
+            "--quiet",
+            "--bin",
+            "secret-share-split",
+            "--",
+            "--count",
+            "5",
+            "--threshold",
+            "4"
+        ));
         let combine = split.pipe(run_self!());
         let output = combine.read().unwrap();
         assert_eq!(output, secret);
@@ -197,7 +218,10 @@ mod tests {
         let combine = echo.pipe(run_self!()).unchecked().stderr_to_stdout();
         let output = combine.read().unwrap();
         assert_eq!(&output[ERR_RANGE], "ERROR");
-        assert_eq!(&output[MSG_RANGE], "shares did not combine to a valid secret");
+        assert_eq!(
+            &output[MSG_RANGE],
+            "shares did not combine to a valid secret"
+        );
     }
 
     #[test]
@@ -215,8 +239,11 @@ mod tests {
         let combine = echo.pipe(run_self!()).unchecked().stderr_to_stdout();
         let output = combine.read().unwrap();
         assert_eq!(&output[ERR_RANGE], "ERROR");
-        assert_eq!(&output[MSG_RANGE], "share 1 is of an incorrect length \
-                                           (the length is not even)");
+        assert_eq!(
+            &output[MSG_RANGE],
+            "share 1 is of an incorrect length \
+                                           (the length is not even)"
+        );
     }
 
     #[test]
@@ -233,7 +260,8 @@ mod tests {
         let shares = "
 01b5d858849053ec0b475b84c580a0a50e13fc283bdebfee35082a1fbe99ef74206efc338ab1f54cbbc63d2807ba07d6f6
 02deb4f2a93e55d8a0a7644723b33ec94fa5ca52e5dfa1cc92c86f937a1d0114fb6efc338ab1f54cbbc63d2807ba07d6f6
-            ".trim();
+            "
+        .trim();
         let echo = cmd!("echo", shares);
         let combine = echo.pipe(run_self!());
         let output = combine.read().unwrap();
@@ -249,7 +277,8 @@ c2e4c927ccb26abbc27ef9632ae4903853a569abefbca5882ea0e1e31c54df1a3d9b0ed09e90f653
 6d0aeeb5b1654d3348cabcdcf04637a25ee9f001bd6e04dd8b0bee7383c863aa79
 028cd8cb05ee80dab157d352da41e0e2a83a16bc0e975de7e55faf9b93f1c2924e6737bde1c0b5e6\
 c2e4c927ccb26abbc27ef9632ae4903853a569abefbca5882ea0e1e31c54df1a3d9b0ed09e90f653\
-6d0aeeb5b1654d3348cabcdcf04637a25ee9f001bd6e04dd8b0bee7383c863aa79".trim();
+6d0aeeb5b1654d3348cabcdcf04637a25ee9f001bd6e04dd8b0bee7383c863aa79"
+            .trim();
         let echo = cmd!("echo", shares);
         let combine = echo.pipe(run_self!());
         let output = combine.stdout_capture().run().unwrap();

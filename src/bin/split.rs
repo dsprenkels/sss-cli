@@ -1,11 +1,12 @@
 #[macro_use]
 extern crate clap;
+extern crate crypto_secretbox;
 extern crate env_logger;
 #[macro_use]
 extern crate log;
 extern crate rand;
-extern crate shamirsecretsharing_cli;
 extern crate shamirsecretsharing;
+extern crate shamirsecretsharing_cli;
 
 use std::env;
 use std::fmt;
@@ -14,6 +15,9 @@ use std::io::prelude::*;
 use std::process::exit;
 
 use clap::{App, Arg, ArgMatches};
+use crypto_secretbox::aead::Aead;
+use crypto_secretbox::KeyInit;
+use crypto_secretbox::XSalsa20Poly1305;
 use rand::random;
 use shamirsecretsharing::hazmat::create_keyshares;
 use shamirsecretsharing::hazmat::KEY_SIZE;
@@ -25,20 +29,24 @@ fn argparse<'a>() -> ArgMatches<'a> {
         .version(crate_version!())
         .author(crate_authors!())
         .about("Generate n shares of a file with recombination treshold t")
-        .arg(Arg::with_name("count")
-                 .short("n")
-                 .long("count")
-                 .value_name("n")
-                 .help("The amount of shares that will be created")
-                 .takes_value(true)
-                 .required(true))
-        .arg(Arg::with_name("threshold")
-                 .short("t")
-                 .long("threshold")
-                 .value_name("k")
-                 .help("The treshold for restoring the file")
-                 .takes_value(true)
-                 .required(true))
+        .arg(
+            Arg::with_name("count")
+                .short("n")
+                .long("count")
+                .value_name("n")
+                .help("The amount of shares that will be created")
+                .takes_value(true)
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("threshold")
+                .short("t")
+                .long("threshold")
+                .value_name("k")
+                .help("The treshold for restoring the file")
+                .takes_value(true)
+                .required(true),
+        )
         .arg(Arg::with_name("FILE").help("Specifies the input file that will be secret-shared"))
         .get_matches()
 }
@@ -65,7 +73,10 @@ fn main() {
         })
         .and_then(|x| if 2 <= x && x <= 255 { Ok(x) } else { Err(x) })
         .unwrap_or_else(|x| {
-            error!("count must be a number between 2 and 255 (instead of {})", x);
+            error!(
+                "count must be a number between 2 and 255 (instead of {})",
+                x
+            );
             exit(1);
         }) as u8;
     let treshold = matches
@@ -76,53 +87,57 @@ fn main() {
             error!("threshold is not a valid number");
             exit(1);
         })
-        .and_then(|x| if 2 <= x && x <= (count as isize) {
+        .and_then(|x| {
+            if 2 <= x && x <= (count as isize) {
                 Ok(x)
             } else {
                 Err(x)
-            })
+            }
+        })
         .unwrap_or_else(|x| {
-                error!("threshold must be a number between 2 and {} (instead of {})", count, x);
-                exit(1);
-            }) as u8;
+            error!(
+                "threshold must be a number between 2 and {} (instead of {})",
+                count, x
+            );
+            exit(1);
+        }) as u8;
 
     // Open the input file and read its contents
     let mut input_file: Box<dyn Read> = match input_fn {
         None | Some("-") => Box::new(std::io::stdin()),
-        Some(input_fn) => {
-            Box::new(File::open(input_fn).unwrap_or_else(|err| {
-                error!("error while opening file '{}': {}", input_fn, err);
-                exit(1);
-            }))
-        }
+        Some(input_fn) => Box::new(File::open(input_fn).unwrap_or_else(|err| {
+            error!("error while opening file '{}': {}", input_fn, err);
+            exit(1);
+        })),
     };
+    let mut plaintext = Vec::new();
+    input_file
+        .read_to_end(&mut plaintext)
+        .expect("reading input file");
     // We are not able to use the normal API for variable length plaintexts, so we will have to
     // use the hazmat API and encrypt the file ourselves
     let key: [u8; KEY_SIZE] = random();
     trace!("creating keyshares");
-    let keyshares = create_keyshares(&key, count, treshold)
-        .unwrap_or_else(|err| {
-            error!("{}", err);
-            exit(1);
-        });
+    let keyshares = create_keyshares(&key, count, treshold).unwrap_or_else(|err| {
+        error!("{}", err);
+        exit(1);
+    });
 
     // Encrypt the contents of the file
-    let mut ciphertext = Vec::new();
     trace!("encrypting secret");
-    crypto_secretbox(&mut ciphertext as &mut dyn Write,
-                     &mut *input_file,
-                     &NONCE,
-                     &key)
+    let cipher = XSalsa20Poly1305::new(&key.into());
+    let ciphertext: Vec<_> = cipher
+        .encrypt(&NONCE.into(), &*plaintext)
         .expect("unexpected error during encryption, this is probably a bug");
 
     // Construct the full shares
-    let full_shares = keyshares.iter()
-         .map(|ks| ks.iter()
-         .chain(ciphertext.iter()));
+    let full_shares = keyshares
+        .iter()
+        .map(|ks| ks.iter().chain(ciphertext.iter()));
 
     // Write the shares to stdout
     let mut buf = String::new();
-    let buf_maxsize = 4 * 2u32.pow(20) as usize;  // size 4Mb
+    let buf_maxsize = 4 * 2u32.pow(20) as usize; // size 4Mb
     trace!("writing shares to output file");
     for share in full_shares {
         for byte in share {
@@ -171,7 +186,8 @@ mod tests {
     fn functional() {
         let secret = "Hello World!";
         let echo = cmd!("echo", "-n", secret);
-        let output = echo.pipe(run_self!("--count", "5", "--threshold", "4"))
+        let output = echo
+            .pipe(run_self!("--count", "5", "--threshold", "4"))
             .read()
             .unwrap();
         let mut idx = 0;
@@ -186,14 +202,12 @@ mod tests {
 
     #[test]
     fn no_args() {
-        let output = run_self!()
-            .unchecked()
-            .stderr_to_stdout()
-            .read()
-            .unwrap();
-        assert!(output.starts_with("error: The following required arguments were not provided:
+        let output = run_self!().unchecked().stderr_to_stdout().read().unwrap();
+        assert!(output.starts_with(
+            "error: The following required arguments were not provided:
     --count <n>
-    --threshold <k>"));
+    --threshold <k>"
+        ));
     }
 
     #[test]
@@ -203,8 +217,10 @@ mod tests {
             .stderr_to_stdout()
             .read()
             .unwrap();
-        assert!(output.starts_with("error: The following required arguments were not provided:
-    --count <n>"));
+        assert!(output.starts_with(
+            "error: The following required arguments were not provided:
+    --count <n>"
+        ));
     }
 
     #[test]
@@ -214,8 +230,10 @@ mod tests {
             .stderr_to_stdout()
             .read()
             .unwrap();
-        assert!(output.starts_with("error: The following required arguments were not provided:
-    --threshold <k>"));
+        assert!(output.starts_with(
+            "error: The following required arguments were not provided:
+    --threshold <k>"
+        ));
     }
 
     #[test]
@@ -232,13 +250,22 @@ mod tests {
     #[test]
     fn count_range() {
         macro_rules! test_bad_count {
-            ($n:expr, $k:expr) => (
+            ($n:expr, $k:expr) => {
                 let output = run_self!("--count", $n, "--threshold", $k)
-                    .unchecked().stderr_to_stdout().read().unwrap();
+                    .unchecked()
+                    .stderr_to_stdout()
+                    .read()
+                    .unwrap();
                 assert_eq!(&output[ERR_RANGE], "ERROR");
-                assert_eq!(&output[MSG_RANGE], format!("count must be a number between 2 \
-                                                        and 255 (instead of {})", $n));
-            )
+                assert_eq!(
+                    &output[MSG_RANGE],
+                    format!(
+                        "count must be a number between 2 \
+                                                        and 255 (instead of {})",
+                        $n
+                    )
+                );
+            };
         }
         test_bad_count!("0", "4");
         test_bad_count!("1", "4");
@@ -259,13 +286,22 @@ mod tests {
     #[test]
     fn threshold_range() {
         macro_rules! test_bad_threshold {
-            ($n:expr, $k:expr) => (
+            ($n:expr, $k:expr) => {
                 let output = run_self!("--count", $n, "--threshold", $k)
-                    .unchecked().stderr_to_stdout().read().unwrap();
+                    .unchecked()
+                    .stderr_to_stdout()
+                    .read()
+                    .unwrap();
                 assert_eq!(&output[ERR_RANGE], "ERROR");
-                assert_eq!(&output[MSG_RANGE], format!("threshold must be a number between 2 \
-                                                        and 5 (instead of {})", $k));
-            )
+                assert_eq!(
+                    &output[MSG_RANGE],
+                    format!(
+                        "threshold must be a number between 2 \
+                                                        and 5 (instead of {})",
+                        $k
+                    )
+                );
+            };
         }
         test_bad_threshold!("5", "0");
         test_bad_threshold!("5", "1");
@@ -281,8 +317,10 @@ mod tests {
             .read()
             .unwrap();
         assert_eq!(&output[ERR_RANGE], "ERROR");
-        assert_eq!(&output[MSG_RANGE],
-                   "error while opening file \'nonexistent\': \
-                    No such file or directory (os error 2)");
+        assert_eq!(
+            &output[MSG_RANGE],
+            "error while opening file \'nonexistent\': \
+                    No such file or directory (os error 2)"
+        );
     }
 }
