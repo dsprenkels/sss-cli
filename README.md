@@ -56,6 +56,13 @@ so that the shares cannot be tampered with, which takes up some extra space.
 [rustup]: https://rustup.rs/
 [crates.io]: https://crates.io/
 
+# Changelog
+
+### New in version 0.1.2
+
+- Use the RustCrypto `crypto-secretbox` crate instead of `xsalsa20poly1305`
+  ([#12](https://github.com/dsprenkels/sss-rs/pull/12)).
+
 # Questions
 
 Feel free to [open an issue](https://github.com/dsprenkels/sss-cli/issues/new)
